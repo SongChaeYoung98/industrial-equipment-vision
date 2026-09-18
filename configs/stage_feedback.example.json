@@ -1,0 +1,10 @@
+{
+  "cluster_1": {
+    "action": "drop",
+    "reason": "hands_or_office_scene"
+  },
+  "cluster_7": {
+    "action": "label",
+    "label": "Control_Panel"
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "version": "v1",
+  "labels": [
+    {
+      "id": "normal",
+      "display_name": "정상",
+      "description": "분석 가능한 정상 상태"
+    },
+    {
+      "id": "unknown",
+      "display_name": "미등록 유형",
+      "description": "현재 라벨 체계로 판단할 수 없는 유형"
+    },
+    {
+      "id": "unusable",
+      "display_name": "분석 불가",
+      "description": "흐림·가림·손상 등으로 입력 품질이 부족한 이미지"
+    }
+  ]
+}
+

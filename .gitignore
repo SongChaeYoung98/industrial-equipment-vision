@@ -1,0 +1,33 @@
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.venv/
+.venv-model/
+venv/
+env/
+.env
+
+# Local data and generated artifacts
+data/raw/
+data/processed/
+data/runs/
+ml/data/raw/
+ml/data/processed/
+ml/data/runs/
+ml/data/derived/
+models/*.onnx
+models/*.ort
+models/*.pt
+models/*.pth
+models/*.safetensors
+models/**/*.pt
+models/**/*.pth
+models/**/*.safetensors
+models/torch-cache/
+*.log
+
+# Keep examples and metadata under version control
+!ml/data/*.example.*
+!models/.gitkeep

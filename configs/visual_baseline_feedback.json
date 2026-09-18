@@ -1,0 +1,10 @@
+{
+  "run": "ml/data/runs/visual_baseline_v1",
+  "reviewer": "user",
+  "groups": {
+    "17": {"action": "exclude", "reason": "human_hand_not_equipment"},
+    "19": {"action": "exclude", "reason": "office_scene_not_equipment"},
+    "20": {"action": "separate_modality", "modality": "thermal", "reason": "multiple_equipment_types_not_one_equipment_class"}
+  },
+  "requirement": "Distinguish equipment by shape; evaluate color/background shortcuts explicitly."
+}

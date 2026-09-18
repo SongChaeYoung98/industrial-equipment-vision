@@ -1,0 +1,3 @@
+{"sample_id":"sample-001","upload_id":"upload-uuid","asset_id":"parsed-uuid","asset_type":"thermal","image_uri":"storage://bucket/path/image.png","label":"normal","label_version":"v1","split":"train","source_device":"camera-a","reviewed":true,"checksum":"sha256:..."}
+{"sample_id":"sample-002","upload_id":"upload-uuid-2","asset_id":"parsed-uuid-2","asset_type":"vision","image_uri":"storage://bucket/path/image.png","label":"unknown","label_version":"v1","split":"test","source_device":"camera-b","reviewed":true,"checksum":"sha256:..."}
+

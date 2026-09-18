@@ -1,0 +1,8 @@
+-r requirements-inference.txt
+torch
+torchvision
+scikit-learn
+pyyaml
+opencv-python
+jupyter
+
