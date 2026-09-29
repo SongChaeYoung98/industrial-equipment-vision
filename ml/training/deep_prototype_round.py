@@ -118,10 +118,12 @@ def main():
     parser.add_argument('--embedding', type=int, default=256)
     parser.add_argument('--workers', type=int, default=6)
     parser.add_argument('--lr', type=float, default=1e-4)
+    parser.add_argument('--resume', action='store_true',
+                        help='Resume the latest checkpoint in --run')
     args = parser.parse_args()
     if not torch.cuda.is_available():
         raise SystemExit('CUDA is required; CPU fallback is disabled')
-    if args.run.exists():
+    if args.run.exists() and not args.resume:
         raise SystemExit(f'Run exists; use a new run path: {args.run}')
     if args.epochs < 1 or args.batch_size < 2 or args.grad_accum < 1:
         raise ValueError('epochs, batch-size and grad-accum must be positive')
@@ -134,7 +136,7 @@ def main():
     records = [records[i] for i in rng.permutation(len(records))]
     split = max(1, int(len(records) * .1))
     validation, training = records[:split], records[split:]
-    args.run.mkdir(parents=True)
+    args.run.mkdir(parents=True, exist_ok=True)
     model = DeepPrototypeModel(args.backbone, args.embedding, args.prototypes).to(device)
     model = model.to(memory_format=torch.channels_last)
     optimizer = torch.optim.AdamW(model.parameters(), lr=args.lr, weight_decay=1e-4)
@@ -150,9 +152,25 @@ def main():
                     gpu=torch.cuda.get_device_name(0), cuda=torch.version.cuda,
                     torch_version=torch.__version__, training_samples=len(training),
                     validation_samples=len(validation), kmeans_used=False)
+    history_path = args.run / 'history.json'
+    history = json.loads(history_path.read_text(encoding='utf-8')) if args.resume and history_path.exists() else []
+    start_epoch = 1
+    if args.resume:
+        checkpoints = sorted(args.run.glob('checkpoint_epoch_*.pt'))
+        if not checkpoints:
+            raise SystemExit(f'No checkpoint found to resume in {args.run}')
+        checkpoint = torch.load(checkpoints[-1], map_location=device, weights_only=True)
+        model.load_state_dict(checkpoint['model'])
+        optimizer.load_state_dict(checkpoint['optimizer'])
+        scaler.load_state_dict(checkpoint['scaler'])
+        start_epoch = int(checkpoint['epoch']) + 1
+        print(f'resuming from epoch {start_epoch} using {checkpoints[-1].name}', flush=True)
+    settings['status'] = 'training'
     (args.run / 'settings.json').write_text(json.dumps(settings, indent=2), encoding='utf-8')
     started = time.monotonic(); history = []
-    for epoch in range(1, args.epochs + 1):
+    if args.resume and history_path.exists():
+        history = json.loads(history_path.read_text(encoding='utf-8'))
+    for epoch in range(start_epoch, args.epochs + 1):
         model.train(); optimizer.zero_grad(set_to_none=True); total = 0.
         epoch_started = time.monotonic()
         for step, (a, b, _) in enumerate(loader, 1):

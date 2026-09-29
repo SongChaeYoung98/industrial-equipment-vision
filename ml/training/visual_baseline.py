@@ -37,11 +37,13 @@ def candidates():
             record['uploads'].append(upload)
     with sqlite3.connect(f'{(DERIVED / "catalog.sqlite").as_uri()}?mode=ro', uri=True) as db:
         for path, sha, metadata in db.execute('SELECT path,sha256,metadata FROM media WHERE kind="image" ORDER BY path'):
-            if json.loads(metadata)['status'] == 'metadata_ok':
-                add(sha, RAW / path, path, 'image')
+            candidate = RAW / path
+            if json.loads(metadata)['status'] == 'metadata_ok' and candidate.is_file():
+                add(sha, candidate, path, 'image')
     for frame in json.loads((DERIVED / 'frames/manifest.json').read_text(encoding='utf-8')):
-        if frame['status'] == 'extracted':
-            add(frame['sha256'], DERIVED / 'frames' / frame['path'], frame['source'], 'frame')
+        candidate = DERIVED / 'frames' / frame['path']
+        if frame['status'] == 'extracted' and candidate.is_file():
+            add(frame['sha256'], candidate, frame['source'], 'frame')
     feedback = decisions()
     # Known thermal examples are preserved for a separate modality experiment.
     return [record for key, record in unique.items() if key not in feedback]

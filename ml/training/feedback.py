@@ -12,7 +12,13 @@ def decisions():
     samples = json.loads((run / 'samples.json').read_text(encoding='utf-8'))
     assignments = np.load(run / 'assignments.npy')
     if len(samples) != len(assignments):
-        raise ValueError('Feedback sample/assignment mismatch')
+        # A prior baseline run can be interrupted after one artifact is
+        # replaced. The hash-bound feedback export is authoritative and does
+        # not require reconstructing cluster assignments.
+        exported = ROOT / 'ml/data/derived/2026_09_16/model_feedback.json'
+        if exported.is_file():
+            return json.loads(exported.read_text(encoding='utf-8'))
+        raise ValueError('Feedback sample/assignment mismatch and no hash-bound export')
     result = {}
     for sample, group in zip(samples, assignments):
         rule = config['groups'].get(str(int(group)))

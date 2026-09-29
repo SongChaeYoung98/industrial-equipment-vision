@@ -1,5 +1,7 @@
 # check-lab-ai
 
+Portable YOLO detector training from a copied dataset: [detector training guide](docs/detector-training.md).
+
 `check-lab-python-back`과 분리된 AI 프로젝트입니다.
 
 이 저장소는 다음 역할을 담당합니다.
@@ -60,4 +62,3 @@ GET  /ready
 - 원본 데이터와 파생 이미지(일반·열화상·UV·프레임)를 구분합니다.
 - 실제 데이터와 개인정보는 Git에 넣지 않습니다.
 - `unknown`과 `unusable`을 별도 라벨로 관리합니다.
-

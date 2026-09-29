@@ -71,7 +71,7 @@ def build_manifest():
     for path in sorted(RAW.glob('*.png')):
         records.append({'source': str(path), 'source_name': path.name, 'kind': 'image'})
     for path in sorted(FRAMES.glob('*')):
-        if path.is_file():
+        if path.is_file() and path.suffix.lower() in {'.png', '.jpg', '.jpeg'}:
             records.append({'source': str(path), 'source_name': path.name, 'kind': 'frame'})
     with MANIFEST.open('w', encoding='utf-8') as handle:
         for record in records:
@@ -214,13 +214,21 @@ def run_dino(rows, device):
     for index, row in enumerate(rows, 1):
         if row['status'] != 'ok':
             continue
-        image = np.asarray(Image.open(ROOT / row['mask_path']).convert('L'))
-        crop = np.asarray(Image.open(OUT / 'primary' / row['primary_crop']).convert('RGB'))
-        # The stored mask is full-frame; use its bbox to crop the same object.
-        x, y, w, h = row['primary_box']
-        mask = image[y:y + h, x:x + w] > 0
-        crop[~mask] = 0
-        gray = Image.fromarray(crop).convert('L').convert('RGB')
+        try:
+            image = np.asarray(Image.open(ROOT / row['mask_path']).convert('L'))
+            # np.asarray(PIL.Image) may return a read-only view. Make the crop
+            # writable before painting its background black.
+            crop = np.asarray(Image.open(OUT / 'primary' / row['primary_crop']).convert('RGB')).copy()
+            # The stored mask is full-frame; use its bbox to crop the same object.
+            x, y, w, h = row['primary_box']
+            mask = image[y:y + h, x:x + w] > 0
+            crop[~mask] = 0
+            gray = Image.fromarray(crop).convert('L').convert('RGB')
+        except Exception as error:
+            row['status'] = 'embedding_failed'
+            row['embedding_error'] = f'{type(error).__name__}: {error}'
+            print(f'SKIP embedding_failed {index}/{len(rows)} {row.get("source_name")}: {error}', flush=True)
+            continue
         batch_images.append(gray)
         batch_rows.append(row)
         if len(batch_images) == 32:
@@ -277,7 +285,7 @@ def classify(all_rows, valid_rows, matrix, threshold):
     anchor_names = sorted(anchors)
     anchor_matrix = np.stack([anchors[name] for name in anchor_names]) if anchor_names else np.empty((0, matrix.shape[1]))
     counts = defaultdict(int)
-    vector_by_source = {row['source']: matrix[index] for index, row in enumerate(rows)}
+    vector_by_source = {row['source']: matrix[index] for index, row in enumerate(valid_rows)}
     for row in all_rows:
         if row['status'] != 'ok' or row['source'] not in vector_by_source or not anchor_names:
             label, score = 'unknown', None
@@ -294,7 +302,7 @@ def classify(all_rows, valid_rows, matrix, threshold):
             shutil.copy2(OUT / 'primary' / row['primary_crop'], destination / row['primary_crop'])
         counts[label] += 1
     (OUT / 'final_records.json').write_text(json.dumps({'threshold': threshold, 'anchors': anchor_names,
-                                                        'records': rows}, indent=2), encoding='utf-8')
+                                                        'records': all_rows}, indent=2), encoding='utf-8')
     print(json.dumps({'anchors': anchor_names, 'counts': dict(counts)}, indent=2), flush=True)
 
 
@@ -312,7 +320,17 @@ def main():
     start = time.time()
     run_sam(records, device)
     rows = load_rows()
-    valid_rows, matrix = run_dino(rows, device)
+    embedding_rows_path = OUT / 'embedding_rows.json'
+    if EMBEDDINGS.exists() and embedding_rows_path.exists() and (OUT / 'pca.json').exists():
+        saved_sources = json.loads(embedding_rows_path.read_text(encoding='utf-8'))
+        saved_by_source = {row['source']: row for row in rows}
+        valid_rows = [saved_by_source[source] for source in saved_sources if source in saved_by_source]
+        matrix = np.load(EMBEDDINGS)
+        if len(valid_rows) != len(matrix):
+            raise RuntimeError('Saved embedding rows do not match embeddings.npy')
+        print(f'Loaded saved embeddings: {len(valid_rows)} rows', flush=True)
+    else:
+        valid_rows, matrix = run_dino(rows, device)
     classify(rows, valid_rows, matrix, args.threshold)
     print(f'completed in {(time.time() - start) / 3600:.2f} hours', flush=True)
 
